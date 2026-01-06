@@ -1,0 +1,13 @@
+# OS files
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Dependencies (if any at root)
+node_modules/
+vendor/
