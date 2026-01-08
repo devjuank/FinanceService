@@ -8,6 +8,13 @@ import (
 	"github.com/juank/finance-ai/backend/internal/models"
 )
 
+// Interface for DB operations
+type Database interface {
+	CreateUser(user models.User) error
+	GetUserByEmail(email string) (models.User, error)
+	GetTransactions(userID uuid.UUID) []models.Transaction
+}
+
 // Mock DB for initial development
 type MemoryDB struct {
 	users        map[string]models.User
@@ -16,18 +23,25 @@ type MemoryDB struct {
 }
 
 var (
-	Instance *MemoryDB
+	Instance Database
 	once     sync.Once
 )
 
-func GetDB() *MemoryDB {
+func GetDB() Database {
 	once.Do(func() {
-		Instance = &MemoryDB{
-			users:        make(map[string]models.User),
-			transactions: []models.Transaction{},
+		// Note: main logic should call Connect() and set Instance
+		if Instance == nil {
+			Instance = GetMemoryDB()
 		}
 	})
 	return Instance
+}
+
+func GetMemoryDB() *MemoryDB {
+	return &MemoryDB{
+		users:        make(map[string]models.User),
+		transactions: []models.Transaction{},
+	}
 }
 
 func (db *MemoryDB) CreateUser(user models.User) error {

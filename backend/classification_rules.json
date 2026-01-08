@@ -1,0 +1,146 @@
+{
+    "merchants": {
+        "PedidosYa": {
+            "category": "comida",
+            "subcategory": "delivery"
+        },
+        "Rappi": {
+            "category": "comida",
+            "subcategory": "delivery"
+        },
+        "McDonald's": {
+            "category": "comida",
+            "subcategory": "fast food"
+        },
+        "Burger King": {
+            "category": "comida",
+            "subcategory": "fast food"
+        },
+        "Google": {
+            "category": "entretenimiento",
+            "subcategory": "servicios digitales"
+        },
+        "Netflix": {
+            "category": "entretenimiento",
+            "subcategory": "servicios digitales"
+        },
+        "Amazon": {
+            "category": "entretenimiento",
+            "subcategory": "servicios digitales"
+        },
+        "Max": {
+            "category": "entretenimiento",
+            "subcategory": "servicios digitales"
+        },
+        "Spotify": {
+            "category": "entretenimiento",
+            "subcategory": "servicios digitales"
+        },
+        "Edesur": {
+            "category": "servicios",
+            "subcategory": "hogar"
+        },
+        "Metrogas": {
+            "category": "servicios",
+            "subcategory": "hogar"
+        },
+        "AySA": {
+            "category": "servicios",
+            "subcategory": "hogar"
+        },
+        "Personal": {
+            "category": "servicios",
+            "subcategory": "comunicaciones"
+        },
+        "YPF": {
+            "category": "transporte",
+            "subcategory": "combustible"
+        },
+        "Coto": {
+            "category": "mercado",
+            "subcategory": "supermercado"
+        },
+        "Carrefour": {
+            "category": "mercado",
+            "subcategory": "supermercado"
+        },
+        "DIA": {
+            "category": "mercado",
+            "subcategory": "supermercado"
+        },
+        "Jumbo": {
+            "category": "mercado",
+            "subcategory": "supermercado"
+        },
+        "Monotributo": {
+            "category": "impuestos",
+            "subcategory": "monotributo"
+        },
+        "ARCA": {
+            "category": "impuestos",
+            "subcategory": "nacionales"
+        },
+        "AFIP": {
+            "category": "impuestos",
+            "subcategory": "nacionales"
+        },
+        "SIRCREB": {
+            "category": "impuestos",
+            "subcategory": "provinciales"
+        },
+        "Estatales": {
+            "category": "servicios",
+            "subcategory": "impuestos"
+        },
+        "Dlo*didi": {
+            "category": "transporte",
+            "subcategory": "apps"
+        },
+        "Uber": {
+            "category": "transporte",
+            "subcategory": "apps"
+        },
+        "Payu*ar*uber": {
+            "category": "transporte",
+            "subcategory": "apps"
+        },
+        "GCBA": {
+            "category": "servicios",
+            "subcategory": "tasas"
+        },
+        "Farmacity": {
+            "category": "salud",
+            "subcategory": "farmacia"
+        },
+        "Cinemark": {
+            "category": "entretenimiento",
+            "subcategory": "cine"
+        },
+        "TELECOM": {
+            "category": "servicios",
+            "subcategory": "comunicaciones"
+        },
+        "Merpago*meli": {
+            "category": "compras",
+            "subcategory": "ecommerce"
+        }
+    },
+    "description_keywords": {
+        "rendimientos": {
+            "category": "financiero",
+            "subcategory": "inversiones"
+        },
+        "intereses pagados": {
+            "category": "financiero",
+            "subcategory": "intereses"
+        },
+        "transferencia recibida": {
+            "category": "transferencia",
+            "subcategory": "otros"
+        },
+        "transferencia enviada": {
+            "category": "transferencia",
+            "subcategory": "otros"
+        }
+    }
+}

@@ -16,6 +16,13 @@ import (
 )
 
 func main() {
+	// Initialize Database
+	database, err := db.Connect()
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	db.Instance = database
+
 	mux := http.NewServeMux()
 
 	// Public routes
