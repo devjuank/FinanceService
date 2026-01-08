@@ -1,14 +1,14 @@
-# Build stage
-FROM golang:1.20-alpine AS builder
+# Build stage: Go
+FROM golang:1.20-alpine AS go-builder
 
 WORKDIR /app
-
 COPY go.mod go.sum ./
 RUN go mod download
-
 COPY . .
-
 RUN CGO_ENABLED=0 GOOS=linux go build -o main cmd/server/main.go
+
+# Build stage: Python (optional, if we wanted to pre-install dependencies)
+# However, we can just install them in the final stage.
 
 # Run stage
 FROM python:3.9-slim
@@ -22,16 +22,19 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python libraries for normalization
-RUN pip install pandas pypdf2 openpyxl
+# pypdf is the modern replacement for pypdf2
+RUN pip install --no-cache-dir pandas pypdf openpyxl
 
 # Copy binary from builder
-COPY --from=builder /app/main .
+COPY --from=go-builder /app/main .
 
 # Copy Python scripts and classification rules
-# (Assuming the scripts are in the root directory relative to the backend)
 COPY ./normalizer.py .
 COPY ./process_transactions.py .
 COPY ./classification_rules.json .
+
+# Create directory for classified data
+RUN mkdir -p /app/DatosClasificados
 
 EXPOSE 8080
 

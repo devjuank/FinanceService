@@ -17,7 +17,9 @@ services:
       - finance-network
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: finance-backend
     ports:
       - "8080:8080"
@@ -28,13 +30,18 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_NAME: ${DB_NAME:-finance_ai}
       JWT_SECRET: ${JWT_SECRET:-your-secret-key}
+    volumes:
+      - ../DatosClasificados:/app/DatosClasificados
+      - ./backend:/app/source:ro # Dev mount if needed, but the Dockerfile handles copies
     depends_on:
       - db
     networks:
       - finance-network
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: finance-frontend
     ports:
       - "3000:3000"
