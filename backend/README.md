@@ -6,15 +6,19 @@ This is the backend service for Finance AI, built with Go.
 - **Go 1.20+**
 - **JWT (json-web-token)** for secure authentication.
 - **Bcrypt** for password hashing.
-- **Python Integration** for file normalization logic.
+- **Native Go Normalization**: High-performance processing of PDF, CSV, and XLSX files.
 
 ## Project Structure
 - `cmd/server/`: Main application entry point.
+- `cmd/processor/`: Standalone CLI for manual data normalization.
 - `internal/api/`: API handlers and middleware.
 - `internal/auth/`: Authentication logic and JWT helpers.
-- `internal/db/`: Data access layer (currently in-memory, ready for PostgreSQL).
+- `internal/db/`: Data access layer (PostgreSQL).
 - `internal/models/`: Shared data structures (User, Transaction).
-- `internal/processor/`: Orchestrator that triggers Python normalization scripts.
+- `internal/processor/`: Core normalization engine and native parsers.
+  - `parsers/`: Logic for Brubank, MercadoPago, Deel, and Santander.
+  - `common/`: Shared helpers and ID generation logic.
+  - `neutralizer.go`: Internal transfer matching logic.
 
 ## Running the Backend
 ```bash
