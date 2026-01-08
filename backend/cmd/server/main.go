@@ -27,7 +27,7 @@ func main() {
 	mux.HandleFunc("/api/transactions", api.AuthMiddleware(handleTransactions))
 
 	fmt.Println("Server starting on :8080...")
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	log.Fatal(http.ListenAndServe(":8080", api.CORSMiddleware(mux)))
 }
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {
