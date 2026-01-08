@@ -58,6 +58,68 @@ func (db *PostgresDB) GetUserByEmail(email string) (models.User, error) {
 }
 
 func (db *PostgresDB) GetTransactions(userID uuid.UUID) []models.Transaction {
-	// For now, return empty or implement query
-	return []models.Transaction{}
+	rows, err := db.Conn.Query(`
+		SELECT id, user_id, upload_id, date, amount, source, description, merchant, category, subcategory, currency, is_transfer, is_fee, is_tax, neutralized, processed_at 
+		FROM transactions WHERE user_id = $1 ORDER BY date DESC`, userID)
+	if err != nil {
+		return []models.Transaction{}
+	}
+	defer rows.Close()
+
+	var txs []models.Transaction
+	for rows.Next() {
+		var tx models.Transaction
+		var dateStr string
+		err := rows.Scan(&tx.ID, &tx.UserID, &tx.UploadID, &dateStr, &tx.Amount, &tx.Source, &tx.Description, &tx.Merchant, &tx.Category, &tx.Subcategory, &tx.Currency, &tx.IsTransfer, &tx.IsFee, &tx.IsTax, &tx.Neutralized, &tx.ProcessedAt)
+		if err == nil {
+			tx.Date = dateStr
+			txs = append(txs, tx)
+		}
+	}
+	return txs
+}
+
+func (db *PostgresDB) CreateUpload(upload models.Upload) error {
+	_, err := db.Conn.Exec("INSERT INTO uploads (id, user_id, filename, status, created_at) VALUES ($1, $2, $3, $4, $5)",
+		upload.ID, upload.UserID, upload.Filename, upload.Status, upload.CreatedAt)
+	return err
+}
+
+func (db *PostgresDB) GetUploads(userID uuid.UUID) []models.Upload {
+	rows, err := db.Conn.Query("SELECT id, user_id, filename, status, created_at FROM uploads WHERE user_id = $1 ORDER BY created_at DESC", userID)
+	if err != nil {
+		return []models.Upload{}
+	}
+	defer rows.Close()
+
+	var uploads []models.Upload
+	for rows.Next() {
+		var u models.Upload
+		if err := rows.Scan(&u.ID, &u.UserID, &u.Filename, &u.Status, &u.CreatedAt); err == nil {
+			uploads = append(uploads, u)
+		}
+	}
+	return uploads
+}
+
+func (db *PostgresDB) UpsertTransactions(txs []models.Transaction) error {
+	for _, tx := range txs {
+		_, err := db.Conn.Exec(`
+			INSERT INTO transactions (id, user_id, upload_id, date, amount, source, description, merchant, category, subcategory, currency, is_transfer, is_fee, is_tax, neutralized, processed_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+			ON CONFLICT (id) DO UPDATE SET
+				upload_id = EXCLUDED.upload_id,
+				category = EXCLUDED.category,
+				subcategory = EXCLUDED.subcategory,
+				merchant = EXCLUDED.merchant,
+				is_transfer = EXCLUDED.is_transfer,
+				is_fee = EXCLUDED.is_fee,
+				is_tax = EXCLUDED.is_tax,
+				neutralized = EXCLUDED.neutralized
+		`, tx.ID, tx.UserID, tx.UploadID, tx.Date, tx.Amount, tx.Source, tx.Description, tx.Merchant, tx.Category, tx.Subcategory, tx.Currency, tx.IsTransfer, tx.IsFee, tx.IsTax, tx.Neutralized, tx.ProcessedAt)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

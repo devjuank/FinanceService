@@ -1,4 +1,4 @@
-# Finance AI
+ls# Finance AI
 
 Finance AI is a premium financial intelligence platform that automates the normalization of bank statements and provides interactive visualizations for better financial management.
 
@@ -28,12 +28,17 @@ Authenticates a user and returns a JWT.
 
 #### POST `/api/upload`
 **Header:** `Authorization: Bearer <token>`
-Uploads a bank statement (PDF, CSV, XLSX) for processing.
+Uploads a bank statement (PDF, CSV, XLSX). The system creates an **Import Batch** (Upload) to track the origin of the data.
 **Request Body:** `multipart/form-data` (field `file`)
+**Response:** `{"upload_id": "...", "count": 12, "message": "..."}`
 
 #### GET `/api/transactions`
 **Header:** `Authorization: Bearer <token>`
-Retrieves normalized transactions for the authenticated user.
+Retrieves normalized transactions for the authenticated user. Includes `upload_id` for traceability.
+
+#### GET `/api/uploads`
+**Header:** `Authorization: Bearer <token>`
+Lists all previous import batches.
 
 ---
 

@@ -13,8 +13,8 @@ This is the backend service for Finance AI, built with Go.
 - `cmd/processor/`: Standalone CLI for manual data normalization.
 - `internal/api/`: API handlers and middleware.
 - `internal/auth/`: Authentication logic and JWT helpers.
-- `internal/db/`: Data access layer (PostgreSQL).
-- `internal/models/`: Shared data structures (User, Transaction).
+- `internal/db/`: Data access layer (PostgreSQL) with Batch & Transaction support.
+- `internal/models/`: Shared entities: **User**, **Transaction**, and **Upload** (Batches).
 - `internal/processor/`: Core normalization engine and native parsers.
   - `parsers/`: Logic for Brubank, MercadoPago, Deel, and Santander.
   - `common/`: Shared helpers and ID generation logic.

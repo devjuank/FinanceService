@@ -106,6 +106,25 @@ paths:
         '401':
           description: Unauthorized
 
+  /api/uploads:
+    get:
+      summary: List all file upload batches
+      tags:
+        - Transactions
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: A list of upload batches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Upload'
+        '401':
+          description: Unauthorized
+
 components:
   securitySchemes:
     BearerAuth:
@@ -177,3 +196,22 @@ components:
           type: boolean
         is_tax:
           type: boolean
+        upload_id:
+          type: string
+          format: uuid
+          example: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+
+    Upload:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        status:
+          type: string
+          enum: [processing, completed, failed]
+        created_at:
+          type: string
+          format: date-time

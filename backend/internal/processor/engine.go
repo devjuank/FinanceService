@@ -2,11 +2,13 @@ package processor
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
+	"github.com/google/uuid"
+	"github.com/juank/finance-ai/backend/internal/db"
 	"github.com/juank/finance-ai/backend/internal/models"
 	"github.com/juank/finance-ai/backend/internal/processor/common"
 	"github.com/juank/finance-ai/backend/internal/processor/parsers"
@@ -14,79 +16,76 @@ import (
 
 type Engine struct {
 	OutputDir string
+	UserID    uuid.UUID
 }
 
-func NewEngine(outputDir string) *Engine {
+func NewEngine(outputDir string, userID uuid.UUID) *Engine {
 	if _, err := os.Stat(outputDir); os.IsNotExist(err) {
 		os.MkdirAll(outputDir, 0755)
 	}
-	return &Engine{OutputDir: outputDir}
+	return &Engine{OutputDir: outputDir, UserID: userID}
 }
 
 func (e *Engine) RunAll() error {
-	var allTransactions []models.Transaction
+	// Re-scan hardcoded paths (Legacy or for dev)
+	// For production, we prefer ProcessFile called from API
+	var allFilesTransactions []models.Transaction
 
-	// 1. Process Brubank
-	brubankDir := "/Users/juank/Documents/Cuentas/Bancos/Brubank"
-	brubankParser := &parsers.BrubankPDFParser{}
-	brubankTXs, _ := e.processDir(brubankDir, ".pdf", brubankParser)
-	if len(brubankTXs) > 0 {
-		e.saveJSON("brubank.json", brubankTXs)
-		allTransactions = append(allTransactions, brubankTXs...)
+	// Simplified for brevity in this example, normally you'd map dirs to parsers
+	dirs := []struct {
+		path   string
+		ext    string
+		parser common.Normalizer
+	}{
+		{"/Users/juank/Documents/Cuentas/Bancos/Brubank", ".pdf", &parsers.BrubankPDFParser{}},
+		{"/Users/juank/Documents/Cuentas/Bancos/MercadoPago", ".csv", &parsers.MercadoPagoParser{}},
+		{"/Users/juank/Documents/Cuentas/Bancos/Deel", ".csv", &parsers.DeelParser{}},
 	}
 
-	// 2. Process MercadoPago
-	mpDir := "/Users/juank/Documents/Cuentas/Bancos/MercadoPago"
-	mpParser := &parsers.MercadoPagoParser{}
-	mpTXs, _ := e.processDir(mpDir, ".csv", mpParser)
-	if len(mpTXs) > 0 {
-		e.saveJSON("mercadopago.json", mpTXs)
-		allTransactions = append(allTransactions, mpTXs...)
+	for _, d := range dirs {
+		txs, _ := e.processDir(d.path, d.ext, d.parser, uuid.Nil)
+		allFilesTransactions = append(allFilesTransactions, txs...)
 	}
 
-	// 3. Process Deel
-	deelDir := "/Users/juank/Documents/Cuentas/Bancos/Deel"
-	deelParser := &parsers.DeelParser{}
-	deelTXs, _ := e.processDir(deelDir, ".csv", deelParser)
-	if len(deelTXs) > 0 {
-		e.saveJSON("deel.json", deelTXs)
-		allTransactions = append(allTransactions, deelTXs...)
+	return e.SaveAndConsolidate(allFilesTransactions)
+}
+
+func (e *Engine) ProcessFile(filePath string, parser common.Normalizer, uploadID uuid.UUID) ([]models.Transaction, error) {
+	txs, err := parser.Normalize(filePath)
+	if err != nil {
+		return nil, err
 	}
 
-	// 4. Process Santander
-	santanderDir := "/Users/juank/Documents/Cuentas/Bancos/santander"
-	santanderXLSXParser := &parsers.SantanderXLSXParser{}
-	santanderTXs, _ := e.processDir(santanderDir, ".xlsx", santanderXLSXParser)
-
-	tarjetaDir := filepath.Join(santanderDir, "Tarjeta")
-	visaParser := &parsers.SantanderVisaPDFParser{}
-	visaTXs, _ := e.processDir(tarjetaDir, ".pdf", visaParser)
-
-	santanderAll := append(santanderTXs, visaTXs...)
-	if len(santanderAll) > 0 {
-		e.saveJSON("santander.json", santanderAll)
-		allTransactions = append(allTransactions, santanderAll...)
+	// Enrich with metadata
+	for i := range txs {
+		txs[i].UserID = e.UserID
+		txs[i].UploadID = uploadID
+		txs[i].ProcessedAt = time.Now()
 	}
 
+	return txs, nil
+}
+
+func (e *Engine) SaveAndConsolidate(txs []models.Transaction) error {
 	// 5. Neutralization & Deduplication
-	// Deduplicate by ID
-	allTransactions = deduplicate(allTransactions)
+	txs = deduplicate(txs)
+	txs = NeutralizeTransfers(txs)
 
-	// Neutralize transfers
-	allTransactions = NeutralizeTransfers(allTransactions)
+	// Persist to DB
+	if err := db.GetDB().UpsertTransactions(txs); err != nil {
+		return err
+	}
 
-	// 6. Sort and save consolidated
-	sort.Slice(allTransactions, func(i, j int) bool {
-		return allTransactions[i].Date > allTransactions[j].Date
+	// 6. Sort and save consolidated JSON (Optional/Legacy support)
+	sort.Slice(txs, func(i, j int) bool {
+		return txs[i].Date > txs[j].Date
 	})
+	e.saveJSON("consolidated_transactions.json", txs)
 
-	e.saveJSON("consolidated_transactions.json", allTransactions)
-
-	fmt.Printf("Total processed transactions: %d\n", len(allTransactions))
 	return nil
 }
 
-func (e *Engine) processDir(dir, ext string, parser common.Normalizer) ([]models.Transaction, error) {
+func (e *Engine) processDir(dir, ext string, parser common.Normalizer, uploadID uuid.UUID) ([]models.Transaction, error) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return nil, nil
 	}
@@ -99,7 +98,7 @@ func (e *Engine) processDir(dir, ext string, parser common.Normalizer) ([]models
 	var all []models.Transaction
 	for _, f := range files {
 		if !f.IsDir() && filepath.Ext(f.Name()) == ext {
-			txs, err := parser.Normalize(filepath.Join(dir, f.Name()))
+			txs, err := e.ProcessFile(filepath.Join(dir, f.Name()), parser, uploadID)
 			if err == nil {
 				all = append(all, txs...)
 			}

@@ -7,7 +7,11 @@ import (
 	"os"
 
 	"encoding/json"
+	"io"
+	"path/filepath"
 	"time"
+
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/juank/finance-ai/backend/internal/api"
@@ -15,6 +19,8 @@ import (
 	"github.com/juank/finance-ai/backend/internal/db"
 	"github.com/juank/finance-ai/backend/internal/models"
 	"github.com/juank/finance-ai/backend/internal/processor"
+	"github.com/juank/finance-ai/backend/internal/processor/common"
+	"github.com/juank/finance-ai/backend/internal/processor/parsers"
 )
 
 func main() {
@@ -106,15 +112,92 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userIDStr := r.Header.Get("X-User-ID")
+	userID, _ := uuid.Parse(userIDStr)
+
+	// Max 10MB
+	r.ParseMultipartForm(10 << 20)
+	file, handler, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Failed to get file: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Create Upload Record
+	uploadID := uuid.New()
+	upload := models.Upload{
+		ID:        uploadID,
+		UserID:    userID,
+		Filename:  handler.Filename,
+		Status:    "processing",
+		CreatedAt: time.Now(),
+	}
+	db.GetDB().CreateUpload(upload)
+
+	// Save file temporarily
+	tempPath := filepath.Join(os.TempDir(), fmt.Sprintf("%s_%s", uploadID, handler.Filename))
+	dst, err := os.Create(tempPath)
+	if err != nil {
+		http.Error(w, "Failed to save file", http.StatusInternalServerError)
+		return
+	}
+	defer os.Remove(tempPath)
+	io.Copy(dst, file)
+	dst.Close()
+
+	// Pick Parser
+	parser := pickParser(handler.Filename)
+	if parser == nil {
+		http.Error(w, "Unsupported file type or bank", http.StatusBadRequest)
+		return
+	}
+
 	// Trigger processing
 	outputDir := "/Users/juank/Documents/Cuentas/DatosClasificados"
-	engine := processor.NewEngine(outputDir)
-	if err := engine.RunAll(); err != nil {
+	engine := processor.NewEngine(outputDir, userID)
+	txs, err := engine.ProcessFile(tempPath, parser, uploadID)
+	if err != nil {
 		http.Error(w, "Processing failed: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	api.JSONResponse(w, http.StatusOK, map[string]string{"message": "Files processed successfully"})
+	if err := engine.SaveAndConsolidate(txs); err != nil {
+		http.Error(w, "Save failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	api.JSONResponse(w, http.StatusOK, map[string]interface{}{
+		"message":   "File processed successfully",
+		"upload_id": uploadID,
+		"count":     len(txs),
+	})
+}
+
+func pickParser(filename string) common.Normalizer {
+	ext := strings.ToLower(filepath.Ext(filename))
+	name := strings.ToLower(filename)
+
+	if ext == ".pdf" {
+		if strings.Contains(name, "brubank") {
+			return &parsers.BrubankPDFParser{}
+		}
+		if strings.Contains(name, "visa") || strings.Contains(name, "santander") {
+			return &parsers.SantanderVisaPDFParser{}
+		}
+	} else if ext == ".csv" {
+		if strings.Contains(name, "mercadopago") {
+			return &parsers.MercadoPagoParser{}
+		}
+		if strings.Contains(name, "deel") {
+			return &parsers.DeelParser{}
+		}
+	} else if ext == ".xlsx" {
+		if strings.Contains(name, "santander") {
+			return &parsers.SantanderXLSXParser{}
+		}
+	}
+	return nil
 }
 
 func handleTransactions(w http.ResponseWriter, r *http.Request) {
@@ -123,14 +206,9 @@ func handleTransactions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := "/Users/juank/Documents/Cuentas/DatosClasificados/consolidated_transactions.json"
-	data, err := os.ReadFile(path)
-	if err != nil {
-		api.JSONResponse(w, http.StatusOK, []interface{}{})
-		return
-	}
+	userIDStr := r.Header.Get("X-User-ID")
+	userID, _ := uuid.Parse(userIDStr)
 
-	var txs []interface{}
-	json.Unmarshal(data, &txs)
+	txs := db.GetDB().GetTransactions(userID)
 	api.JSONResponse(w, http.StatusOK, txs)
 }
