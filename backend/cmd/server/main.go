@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"encoding/json"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/juank/finance-ai/backend/internal/auth"
 	"github.com/juank/finance-ai/backend/internal/db"
 	"github.com/juank/finance-ai/backend/internal/models"
+	"github.com/juank/finance-ai/backend/internal/processor"
 )
 
 func main() {
@@ -103,9 +105,16 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	userID := r.Header.Get("X-User-ID")
-	fmt.Printf("Uploading file for user: %s\n", userID)
-	api.JSONResponse(w, http.StatusOK, map[string]string{"message": "File upload started (mock)"})
+
+	// Trigger processing
+	outputDir := "/Users/juank/Documents/Cuentas/DatosClasificados"
+	engine := processor.NewEngine(outputDir)
+	if err := engine.RunAll(); err != nil {
+		http.Error(w, "Processing failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	api.JSONResponse(w, http.StatusOK, map[string]string{"message": "Files processed successfully"})
 }
 
 func handleTransactions(w http.ResponseWriter, r *http.Request) {
@@ -113,5 +122,15 @@ func handleTransactions(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	api.JSONResponse(w, http.StatusOK, []string{})
+
+	path := "/Users/juank/Documents/Cuentas/DatosClasificados/consolidated_transactions.json"
+	data, err := os.ReadFile(path)
+	if err != nil {
+		api.JSONResponse(w, http.StatusOK, []interface{}{})
+		return
+	}
+
+	var txs []interface{}
+	json.Unmarshal(data, &txs)
+	api.JSONResponse(w, http.StatusOK, txs)
 }

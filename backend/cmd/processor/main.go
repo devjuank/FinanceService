@@ -1,0 +1,22 @@
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/juank/finance-ai/backend/internal/processor"
+)
+
+func main() {
+	fmt.Println("Starting Financial Processor (Go Native)...")
+
+	outputDir := "/Users/juank/Documents/Cuentas/DatosClasificados"
+	engine := processor.NewEngine(outputDir)
+
+	err := engine.RunAll()
+	if err != nil {
+		log.Fatalf("Error running processor: %v", err)
+	}
+
+	fmt.Println("Processing completed successfully.")
+}
